@@ -1,0 +1,169 @@
+---
+- hosts: vm-macbook
+  become: yes
+
+  #  vars:
+  #  ansible_network_os: RedHat
+
+  tasks:
+
+  - name: centos 7 postinstall | Set SE Linux to be permissive for now (will be restrictive later on)
+    lineinfile:
+      path: /etc/selinux/config
+      regexp: '^SELINUX='
+      line: 'SELINUX=permissive'
+
+  - name: centos 7 postinstall | Configure name servers
+    lineinfile:
+      path: /etc/sysconfig/network-scripts/ifcfg-eth1
+      line: "{{ item }}"
+    with_items:
+      - 'DNS1=192.168.1.13'
+      - 'DOMAIN=lanathome.com'
+
+  - name: centos 7 postinstall | Configure static route
+    lineinfile:
+      path: /etc/sysconfig/network-scripts/route-eth1
+      line: '192.168.37.0/24 via {{ ansible_eth1.ipv4.address }} dev eth1'
+
+  - name: centos 7 postinstall | Restart network service
+    service:
+      name: network
+      state: restarted
+
+  # Enable Local Repo for Centos Updates
+  - name: centos 7 postinstall | add local repo for CentOS updates
+    yum_repository:
+      name: CentOS-Updates-local
+      description: CentOS-7 - Updates from local repo
+      baseurl: https://192.168.1.199/shares/CENTOS%2520UPDATES/7/updates/x86_64/
+      gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+      repo_gpgcheck: no
+      sslverify: no
+    tags: updates
+
+  # Update the node to take in the latest patches and security updates
+  - name: centos 7 postinstall | Update each node to take in the latest patches and security updates
+    yum:
+      name: '*'
+      enablerepo: CentOS-Updates-local
+      state: latest
+    tags: updates
+
+  - name: centos 7 postinstall | Install some packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - bind-utils
+      - lsof
+      - iscsi-initiator-utils
+      - storaged-iscsi
+      - device-mapper-multipath
+      - nc
+
+  - name: centos 7 postinstall | Start multipath service
+    service:
+      name: multipathd
+      state: started
+      enabled: yes
+
+  - name: xcentos 7 postinstall | Configure auth over ldap
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - openldap-clients
+      - nss-pam-ldapd
+
+  - name: centos 7 postinstall | Turn-on auth over ldap
+    shell: "{{ item }}"
+    with_items:
+      - authconfig --enableforcelegacy --update
+      - authconfig --enableldap --enableldapauth --ldapserver=openldap.lanathome.com --ldapbasedn=dc=lanathome,dc=com --update
+      - authconfig --enablemkhomedir --update
+      - authconfig --enableldaptls --update
+
+  - name: centos 7 postinstall | Copy ldap.conf
+    copy:
+      src: files/ldap.conf
+      dest: /etc/openldap/ldap.conf
+      owner: openldap
+      group: openldap
+      mode: 0640
+
+  - name: centos 7 postinstall | Copy cacert.pem
+    copy:
+      src:  files/cacert.pem
+      dest: /etc/ssl/certs/cacert.pem
+      owner: openldap
+      group: openldap
+      mode: 0640
+
+  - name: centos 7 postinstall | Restart nscd
+    service:
+      name: nscd
+      state: restarted
+
+  - name: centos 7 postinstall | Set authorized key took from insecure_private_key.pub
+    authorized_key:
+      user: vagrant
+      state: present
+      key: "{{ lookup('file', '/Users/grosshaa/.vagrant.d/insecure_private_key.pub') }}"
+
+  - name: centos 7 postinstall | Set authorized key took from grosshaa's ssh
+    authorized_key:
+      user: ngr
+      state: present
+      key: "{{ lookup('file', '/Users/grosshaa/.ssh/id_rsa.pub') }}"
+
+- name: centos 7 postinstall | Download sudo from source
+    get_url:
+     url: https://www.sudo.ws/dist/sudo-1.8.21p2.tar.gz
+     dest: /tmp/sudo-1.8.21p2.tar.gz
+     mode: 755
+
+  - name: centos 7 postinstall | Unarchive a file that is already on the remote machine
+    unarchive:
+      src: /tmp/sudo-1.8.21p2.tar.gz
+      dest: /tmp/
+      remote_src: yes
+
+  - name: centos 7 postinstall | Configure install
+    command: ./configure
+    args:
+      chdir: "/tmp/sudo-1.8.21p2.tar.gz"
+      creates: "/tmp/sudo-1.8.21p2/config.status"
+
+  - name: centos 7 postinstall | Build JQ
+    command: make
+    args:
+      chdir: "/tmp/sudo-1.8.21p2"
+      creates: "/tmp/sudo-1.8.21p2/sudo"
+
+  - name: centos 7 postinstall | Install jq
+    become: true
+    command: make install
+    args:
+      chdir: "/tmp/sudo-1.8.21p2/"
+      creates: /home/ngr/sudo
+
+  - name: centos 7 postinstall | Create sudo.Readme file
+    blockinfile:
+    path: /home/ngr/sudo.Readme
+    block: |
+        Convert your current sudoers file
+
+        The sudoers package contains a perl-script called sudoers2ldif, this script is provided in the /usr/share/doc/sudoers/ directory.
+
+        Set the sudoers base environment variable:
+
+        SUDOERS_BASE="ou=SUDOers,ou=services,dc=example,dc=com"
+        export SUDOERS_BASE
+        Make the script executable and run:
+
+        /home/ngr/sudo/sudoers2ldif /etc/sudoers > /home/ngr/sudo/sudoers.ldif
+
+        copy /home/ngr/sudo/sudoers.ldif to openldap.lanathome.com and issue the ldapadd command:
+        ldapadd -x -D cn=admin,dc=lanathome,dc=com -W -f /home/ngr/sudo/sudoers.ldif -c
+        

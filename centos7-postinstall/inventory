@@ -1,0 +1,19 @@
+centos7-1 ansible_host=127.0.0.1 ansible_port=2527 ansible_user=vagrant ansible_ssh_private_key_file=/Users/grosshaa/.vagrant.d/.vagrant/machines/centos7-1/virtualbox/private_key
+centos7-2 ansible_host=127.0.0.1 ansible_port=2528 ansible_user=vagrant ansible_ssh_private_key_file=/Users/grosshaa/.vagrant.d/.vagrant/machines/centos7-2/virtualbox/private_key
+#
+##centos7-3 ansible_host=192.168.37.158 ansible_port=22 ansible_user=vagrant ansible_ssh_private_key_file=/Users/grosshaa/.vagrant.d/insecure_private_key
+##centos7-4 ansible_host=192.168.37.159 ansible_port=22 ansible_user=vagrant ansible_ssh_private_key_file=/Users/grosshaa/.vagrant.d/insecure_private_key
+#
+[all]
+centos7-1
+centos7-2
+centos7-3
+centos7-4
+
+[vm-macbook]
+centos7-1
+centos7-2
+
+[vm-macmini]
+centos7-3
+centos7-4
