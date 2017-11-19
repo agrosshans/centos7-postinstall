@@ -80,7 +80,7 @@
       state: started
       enabled: yes
 
-  - name: xcentos 7 postinstall | Configure auth over ldap
+  - name: centos 7 postinstall | Configure auth over ldap
     yum:
       name: "{{ item }}"
       state: present
@@ -125,8 +125,6 @@
     file:
       src: /etc/ssl/certs/cacert.pem
       dest: /etc/ssl/certs/94e84709.0
-      owner: root
-      group: root
       state: link
 
   - name: centos 7 postinstall | Update nsswitch.conf
@@ -214,7 +212,7 @@
 
         Make the script executable and run:
 
-        /usr/share/doc/sudo-1.8.19p2/sudoers2ldif /etc/sudoers > /home/ngr/sudo/sudoers.ldif
+        /tmp/sudo-1.8.21p2/plugins/sudoers/sudoers2ldif /etc/sudoers > /home/ngr/sudoers.ldif
 
         copy /home/ngr/sudo/sudoers.ldif to openldap.lanathome.com and issue the ldapadd command:
         ldapadd -x -D cn=admin,dc=lanathome,dc=com -W -f /home/ngr/sudo/sudoers.ldif -c
