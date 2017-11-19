@@ -114,7 +114,7 @@
     file:
       path: /home/ngr/
       owner: ngr
-      group: ngr
+      group: saunix
       state: directory
       mode: "u=rw,g=r,o=r"
 
@@ -122,7 +122,7 @@
     file:
       path: /home/ngr/.ssh
       owner: ngr
-      group: ngr
+      group: saunix
       state: directory
       mode: 0700
 
