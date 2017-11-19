@@ -91,11 +91,19 @@
 
   - name: centos 7 postinstall | Copy ldap.conf
     copy:
-      src: files/ldap.conf
-      dest: /etc/openldap/ldap.conf
+      src: files/sudo-ldap.conf
+      dest: /etc/sudo-ldap.conf
       owner: root
       group: root
       mode: 0640
+
+  - name: centos 7 postinstall | Create symlink between /etc/sudo-ldap.conf and /etc/ldap.conf
+    file:
+      src: /etc/sudo-ldap.conf
+      dest: /etc/ldap.conf
+      owner: root
+      group: root
+      state: link
 
   - name: centos 7 postinstall | Copy cacert.pem
     copy:
@@ -104,6 +112,11 @@
       owner: root
       group: root
       mode: 0640
+
+  - name: centos 7 postinstall | Update nsswitch.conf
+    lineinfile:
+      path: /etc/nsswitch.conf
+      line: 'sudoers: ldap'
 
   - name: centos 7 postinstall | Restart nscd
     service:
@@ -116,7 +129,7 @@
       owner: ngr
       group: saunix
       state: directory
-      mode: "u=rw,g=r,o=r"
+      mode: "u=rwx,g=r,o=r"
 
   - name: centos 7 postinstall | Create .ssh for Users
     file:
@@ -140,9 +153,10 @@
 
   - name: centos 7 postinstall | Download sudo from source
     get_url:
-      url: "https://www.sudo.ws/dist/sudo-1.8.21p2.tar.gz"
+      url: https://www.sudo.ws/dist/sudo-1.8.21p2.tar.gz
       dest: /tmp/sudo-1.8.21p2.tar.gz
       mode: 755
+      validate_certs: no
 
   - name: centos 7 postinstall | Unarchive a file that is already on the remote machine
     unarchive:
@@ -151,7 +165,7 @@
       remote_src: yes
 
   - name: centos 7 postinstall | Configure install
-    command: ./configure
+    command: ./configure --prefix=/tmp/sudo
     args:
       chdir: "/tmp/sudo-1.8.21p2"
       creates: "/tmp/sudo-1.8.21p2/config.status"
