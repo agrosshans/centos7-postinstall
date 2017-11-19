@@ -119,7 +119,7 @@
       dest: /etc/ssl/certs/cacert.pem
       owner: root
       group: root
-      mode: 0640
+      mode: 0644
 
   - name: centos 7 postinstall | Create symlink 94e84709.0 and /etc/ssl/certs/cacert.pem
     file:
