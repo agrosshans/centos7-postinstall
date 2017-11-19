@@ -7,8 +7,6 @@ centos7-2 ansible_host=127.0.0.1 ansible_port=2528 ansible_user=vagrant ansible_
 [all]
 centos7-1
 centos7-2
-centos7-3
-centos7-4
 
 [vm-macbook]
 centos7-1
