@@ -7,6 +7,14 @@
 
   tasks:
 
+  - name: centos 7 postinstall | Set LOCALE
+    blockinfile:
+      path: /etc/environment
+      create: yes
+      block: |
+        LANG=en_US.utf-8
+        LC_ALL=en_US.utf-8
+
   - name: centos 7 postinstall | Set SE Linux to be permissive for now (will be restrictive later on)
     lineinfile:
       path: /etc/selinux/config
@@ -112,6 +120,14 @@
       owner: root
       group: root
       mode: 0640
+
+  - name: centos 7 postinstall | Create symlink 94e84709.0 and /etc/ssl/certs/cacert.pem
+    file:
+      src: /etc/ssl/certs/cacert.pem
+      dest: /etc/ssl/certs/94e84709.0
+      owner: root
+      group: root
+      state: link
 
   - name: centos 7 postinstall | Update nsswitch.conf
     lineinfile:
