@@ -150,8 +150,8 @@
 
   - name: centos 7 postinstall | Create sudo.Readme file
     blockinfile:
-    path: /home/ngr/sudo.Readme
-    block: |
+      path: /home/ngr/sudo.Readme
+      block: |
         Convert your current sudoers file
 
         The sudoers package contains a perl-script called sudoers2ldif, this script is provided in the /usr/share/doc/sudoers/ directory.
