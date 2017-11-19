@@ -110,6 +110,22 @@
       name: nscd
       state: restarted
 
+  - name: centos 7 postinstall | Create .ssh for Users
+    file:
+    path: /home/ngr/
+    owner: ngr
+    group: ngr
+    state: directory
+    mode: "u=rw,g=r,o=r"
+
+  - name: centos 7 postinstall | Create .ssh for Users
+    file:
+    path: /home/ngr/.ssh
+    owner: ngr
+    group: ngr
+    state: directory
+    mode: 0700
+
   - name: centos 7 postinstall | Set authorized key took from insecure_private_key.pub
     authorized_key:
       user: vagrant
