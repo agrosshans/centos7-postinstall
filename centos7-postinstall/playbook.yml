@@ -15,6 +15,10 @@
         LANG=en_US.utf-8
         LC_ALL=en_US.utf-8
 
+  - name: centos 7 postinstall | set timezone to Europe/Paris
+    timezone:
+    name: Europe/Paris
+
   - name: centos 7 postinstall | Set SE Linux to be permissive for now (will be restrictive later on)
     lineinfile:
       path: /etc/selinux/config
