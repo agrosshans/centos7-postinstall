@@ -117,11 +117,11 @@
       state: present
       key: "{{ lookup('file', '/Users/grosshaa/.ssh/id_rsa.pub') }}"
 
-- name: centos 7 postinstall | Download sudo from source
+  - name: centos 7 postinstall | Download sudo from source
     get_url:
-     url: https://www.sudo.ws/dist/sudo-1.8.21p2.tar.gz
-     dest: /tmp/sudo-1.8.21p2.tar.gz
-     mode: 755
+      url: "https://www.sudo.ws/dist/sudo-1.8.21p2.tar.gz"
+      dest: /tmp/sudo-1.8.21p2.tar.gz
+      mode: 755
 
   - name: centos 7 postinstall | Unarchive a file that is already on the remote machine
     unarchive:
