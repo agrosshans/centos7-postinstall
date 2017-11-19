@@ -16,6 +16,8 @@
   - name: centos 7 postinstall | Configure name servers
     lineinfile:
       path: /etc/sysconfig/network-scripts/ifcfg-eth1
+      state: present
+      create: yes
       line: "{{ item }}"
     with_items:
       - 'DNS1=192.168.1.13'
@@ -24,6 +26,8 @@
   - name: centos 7 postinstall | Configure static route
     lineinfile:
       path: /etc/sysconfig/network-scripts/route-eth1
+      state: present
+      create: yes
       line: '192.168.37.0/24 via {{ ansible_eth1.ipv4.address }} dev eth1'
 
   - name: centos 7 postinstall | Restart network service
@@ -75,29 +79,30 @@
     with_items:
       - openldap-clients
       - nss-pam-ldapd
+      - authconfig
 
   - name: centos 7 postinstall | Turn-on auth over ldap
     shell: "{{ item }}"
     with_items:
-      - authconfig --enableforcelegacy --update
-      - authconfig --enableldap --enableldapauth --ldapserver=openldap.lanathome.com --ldapbasedn=dc=lanathome,dc=com --update
-      - authconfig --enablemkhomedir --update
-      - authconfig --enableldaptls --update
+      - /sbin/authconfig --enableforcelegacy --update
+      - /sbin/authconfig --enableldap --enableldapauth --ldapserver=openldap.lanathome.com --ldapbasedn=dc=lanathome,dc=com --update
+      - /sbin/authconfig --enablemkhomedir --update
+      - /sbin/authconfig --enableldaptls --update
 
   - name: centos 7 postinstall | Copy ldap.conf
     copy:
       src: files/ldap.conf
       dest: /etc/openldap/ldap.conf
-      owner: openldap
-      group: openldap
+      owner: root
+      group: root
       mode: 0640
 
   - name: centos 7 postinstall | Copy cacert.pem
     copy:
       src:  files/cacert.pem
       dest: /etc/ssl/certs/cacert.pem
-      owner: openldap
-      group: openldap
+      owner: root
+      group: root
       mode: 0640
 
   - name: centos 7 postinstall | Restart nscd
@@ -132,16 +137,16 @@
   - name: centos 7 postinstall | Configure install
     command: ./configure
     args:
-      chdir: "/tmp/sudo-1.8.21p2.tar.gz"
+      chdir: "/tmp/sudo-1.8.21p2"
       creates: "/tmp/sudo-1.8.21p2/config.status"
 
-  - name: centos 7 postinstall | Build JQ
+  - name: centos 7 postinstall | Build sudo
     command: make
     args:
       chdir: "/tmp/sudo-1.8.21p2"
       creates: "/tmp/sudo-1.8.21p2/sudo"
 
-  - name: centos 7 postinstall | Install jq
+  - name: centos 7 postinstall | Install sudo
     become: true
     command: make install
     args:
@@ -151,6 +156,7 @@
   - name: centos 7 postinstall | Create sudo.Readme file
     blockinfile:
       path: /home/ngr/sudo.Readme
+      create: yes
       block: |
         Convert your current sudoers file
 
@@ -158,11 +164,11 @@
 
         Set the sudoers base environment variable:
 
-        SUDOERS_BASE="ou=SUDOers,ou=services,dc=example,dc=com"
-        export SUDOERS_BASE
+        export SUDOERS_BASE="ou=SUDOers,dc=lanathome,dc=com"
+
         Make the script executable and run:
 
-        /home/ngr/sudo/sudoers2ldif /etc/sudoers > /home/ngr/sudo/sudoers.ldif
+        /usr/share/doc/sudo-1.8.19p2/sudoers2ldif /etc/sudoers > /home/ngr/sudo/sudoers.ldif
 
         copy /home/ngr/sudo/sudoers.ldif to openldap.lanathome.com and issue the ldapadd command:
         ldapadd -x -D cn=admin,dc=lanathome,dc=com -W -f /home/ngr/sudo/sudoers.ldif -c
