@@ -27,13 +27,14 @@
 
   - name: centos 6 postinstall | Configure name servers
     lineinfile:
-      path: /etc/sysconfig/network-scripts/ifcfg-eth3
+      path: /etc/sysconfig/network-scripts/ifcfg-eth0
       state: present
       create: yes
       line: "{{ item }}"
     with_items:
       - 'DNS1=192.168.1.13'
       - 'DOMAIN=lanathome.com'
+      - 'SEARCH=lanathome.com'
 
   - name: centos 6 postinstall | Configure static route
     lineinfile:
@@ -42,6 +43,28 @@
       create: yes
       line: '192.168.56.0/24 via {{ ansible_eth0.ipv4.address }} dev eth0'
 
+  - name: centos 6 postinstall | Configure ifcfg-eth1
+    interfaces_file:
+      dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+      iface: ifcfg-eth1
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+    with_items:
+      - { option: 'DEVICE', value: 'eth1' }
+      - { option: 'HWADDR', value: '08:00:27:b7:a5:87' }
+      - { option: 'TYPE', value: 'Ethernet' }
+      - { option: 'UUID', value: 'fca84048-abf6-45e1-8580-6b3668230fb9' }
+      - { option: 'ONBOOT', value: 'yes' }
+      - { option: 'NM_CONTROLLED', value: 'no' }
+      - { option: 'BOOTPROTO', value: 'none' }
+      - { option: 'USERCTL', value: 'no' }
+      - { option: 'PEERDNS', value: 'no' }
+      - { option: 'IPV6INIT', value: 'no' }
+      - { option: 'DNS1', value: '192.168.1.13' }
+      - { option: 'DOMAIN', value: 'lanathome.com' }      
+      - { option: 'IPADDR', value: '192.168.36.160' }
+      - { option: 'NETMASK', value: '255.255.255.0' }
+      
   - name: centos 6 postinstall | Restart network service
     service:
       name: network
@@ -74,7 +97,6 @@
       - bind-utils
       - lsof
       - iscsi-initiator-utils
-      - storaged-iscsi
       - device-mapper-multipath
       - nc
 
@@ -96,10 +118,10 @@
   - name: centos 6 postinstall | Turn-on auth over ldap
     shell: "{{ item }}"
     with_items:
-      - /sbin/authconfig --enableforcelegacy --update
-      - /sbin/authconfig --enableldap --enableldapauth --ldapserver=openldap.lanathome.com --ldapbasedn=dc=lanathome,dc=com --update
-      - /sbin/authconfig --enablemkhomedir --update
-      - /sbin/authconfig --enableldaptls --update
+      - /usr/sbin/authconfig --enableforcelegacy --update
+      - /usr/sbin/authconfig --enableldap --enableldapauth --ldapserver=openldap.lanathome.com --ldapbasedn=dc=lanathome,dc=com --update
+      - /usr/sbin/authconfig --enablemkhomedir --update
+      - /usr/sbin/authconfig --enableldaptls --update
 
   - name: centos 6 postinstall | Copy ldap.conf
     copy:
@@ -112,7 +134,7 @@
   - name: centos 6 postinstall | Create symlink between /etc/sudo-ldap.conf and /etc/ldap.conf
     file:
       src: /etc/sudo-ldap.conf
-      dest: /etc/ldap.conf
+      dest: /etc/openldap/ldap.conf
       owner: root
       group: root
       state: link
@@ -120,15 +142,15 @@
   - name: centos 6 postinstall | Copy cacert.pem
     copy:
       src:  files/cacert.pem
-      dest: /etc/ssl/certs/cacert.pem
+      dest: /etc/openldap/cacerts/cacert.pem
       owner: root
       group: root
       mode: 0644
 
   - name: centos 6 postinstall | Create symlink 94e84709.0 and /etc/ssl/certs/cacert.pem
     file:
-      src: /etc/ssl/certs/cacert.pem
-      dest: /etc/ssl/certs/94e84709.0
+      src: /etc/openldap/cacerts/cacert.pem
+      dest: /etc/openldap/cacerts/94e84709.0
       state: link
 
   - name: centos 6 postinstall | Update nsswitch.conf
