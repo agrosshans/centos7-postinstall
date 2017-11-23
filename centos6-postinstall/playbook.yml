@@ -1,0 +1,223 @@
+---
+- hosts: cobbler
+  become: yes
+
+  #  vars:
+  #  ansible_network_os: RedHat
+
+  tasks:
+
+  - name: centos 6 postinstall | Set LOCALE
+    blockinfile:
+      path: /etc/environment
+      create: yes
+      block: |
+        LANG=en_US.utf-8
+        LC_ALL=en_US.utf-8
+
+  - name: centos 6 postinstall | set timezone to Europe/Paris
+    timezone:
+      name: Europe/Paris
+
+  - name: centos 6 postinstall | Set SE Linux to be permissive for now (will be restrictive later on)
+    lineinfile:
+      path: /etc/selinux/config
+      regexp: '^SELINUX='
+      line: 'SELINUX=permissive'
+
+  - name: centos 6 postinstall | Configure name servers
+    lineinfile:
+      path: /etc/sysconfig/network-scripts/ifcfg-eth3
+      state: present
+      create: yes
+      line: "{{ item }}"
+    with_items:
+      - 'DNS1=192.168.1.13'
+      - 'DOMAIN=lanathome.com'
+
+  - name: centos 6 postinstall | Configure static route
+    lineinfile:
+      path: /etc/sysconfig/network-scripts/route-eth0
+      state: present
+      create: yes
+      line: '192.168.56.0/24 via {{ ansible_eth0.ipv4.address }} dev eth0'
+
+  - name: centos 6 postinstall | Restart network service
+    service:
+      name: network
+      state: restarted
+
+  # Enable Local Repo for Centos Updates
+  - name: centos 6 postinstall | add local repo for CentOS updates
+    yum_repository:
+      name: CentOS-Updates-local
+      description: CentOS-6 - Updates from local repo
+      baseurl: https://192.168.1.199/shares/CENTOS%2520UPDATES/6/updates/x86_64/
+      gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-6
+      repo_gpgcheck: no
+      sslverify: no
+    tags: updates
+
+  # Update the node to take in the latest patches and security updates
+  - name: centos 6 postinstall | Update each node to take in the latest patches and security updates
+    yum:
+      name: '*'
+      enablerepo: CentOS-Updates-local
+      state: latest
+    tags: updates
+
+  - name: centos 6 postinstall | Install some packages
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - bind-utils
+      - lsof
+      - iscsi-initiator-utils
+      - storaged-iscsi
+      - device-mapper-multipath
+      - nc
+
+  - name: centos 6 postinstall | Start multipath service
+    service:
+      name: multipathd
+      state: started
+      enabled: yes
+
+  - name: centos 6 postinstall | Configure auth over ldap
+    yum:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - openldap-clients
+      - nss-pam-ldapd
+      - authconfig
+
+  - name: centos 6 postinstall | Turn-on auth over ldap
+    shell: "{{ item }}"
+    with_items:
+      - /sbin/authconfig --enableforcelegacy --update
+      - /sbin/authconfig --enableldap --enableldapauth --ldapserver=openldap.lanathome.com --ldapbasedn=dc=lanathome,dc=com --update
+      - /sbin/authconfig --enablemkhomedir --update
+      - /sbin/authconfig --enableldaptls --update
+
+  - name: centos 6 postinstall | Copy ldap.conf
+    copy:
+      src: files/sudo-ldap.conf
+      dest: /etc/sudo-ldap.conf
+      owner: root
+      group: root
+      mode: 0640
+
+  - name: centos 6 postinstall | Create symlink between /etc/sudo-ldap.conf and /etc/ldap.conf
+    file:
+      src: /etc/sudo-ldap.conf
+      dest: /etc/ldap.conf
+      owner: root
+      group: root
+      state: link
+
+  - name: centos 6 postinstall | Copy cacert.pem
+    copy:
+      src:  files/cacert.pem
+      dest: /etc/ssl/certs/cacert.pem
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: centos 6 postinstall | Create symlink 94e84709.0 and /etc/ssl/certs/cacert.pem
+    file:
+      src: /etc/ssl/certs/cacert.pem
+      dest: /etc/ssl/certs/94e84709.0
+      state: link
+
+  - name: centos 6 postinstall | Update nsswitch.conf
+    lineinfile:
+      path: /etc/nsswitch.conf
+      line: 'sudoers: ldap'
+
+  - name: centos 6 postinstall | Restart nscd
+    service:
+      name: nscd
+      state: restarted
+
+  - name: centos 6 postinstall | Create .ssh for Users
+    file:
+      path: /home/ngr/
+      owner: ngr
+      group: saunix
+      state: directory
+      mode: "u=rwx,g=r,o=r"
+
+  - name: centos 6 postinstall | Create .ssh for Users
+    file:
+      path: /home/ngr/.ssh
+      owner: ngr
+      group: saunix
+      state: directory
+      mode: 0700
+
+  - name: centos 6 postinstall | Set authorized key took from insecure_private_key.pub
+    authorized_key:
+      user: vagrant
+      state: present
+      key: "{{ lookup('file', '/Users/grosshaa/.vagrant.d/insecure_private_key.pub') }}"
+
+  - name: centos 6 postinstall | Set authorized key took from grosshaa's ssh
+    authorized_key:
+      user: ngr
+      state: present
+      key: "{{ lookup('file', '/Users/grosshaa/.ssh/id_rsa.pub') }}"
+
+  - name: centos 6 postinstall | Download sudo from source
+    get_url:
+      url: https://www.sudo.ws/dist/sudo-1.8.21p2.tar.gz
+      dest: /tmp/sudo-1.8.21p2.tar.gz
+      mode: 755
+      validate_certs: no
+
+  - name: centos 6 postinstall | Unarchive a file that is already on the remote machine
+    unarchive:
+      src: /tmp/sudo-1.8.21p2.tar.gz
+      dest: /tmp/
+      remote_src: yes
+
+  - name: centos 6 postinstall | Configure install
+    command: ./configure --prefix=/tmp/sudo
+    args:
+      chdir: "/tmp/sudo-1.8.21p2"
+      creates: "/tmp/sudo-1.8.21p2/config.status"
+
+  - name: centos 6 postinstall | Build sudo
+    command: make
+    args:
+      chdir: "/tmp/sudo-1.8.21p2"
+      creates: "/tmp/sudo-1.8.21p2/sudo"
+
+  - name: centos 6 postinstall | Install sudo
+    become: true
+    command: make install
+    args:
+      chdir: "/tmp/sudo-1.8.21p2/"
+      creates: /home/ngr/sudo
+
+  - name: centos 6 postinstall | Create sudo.Readme file
+    blockinfile:
+      path: /home/ngr/sudo.Readme
+      create: yes
+      block: |
+        Convert your current sudoers file
+
+        The sudoers package contains a perl-script called sudoers2ldif, this script is provided in the /usr/share/doc/sudoers/ directory.
+
+        Set the sudoers base environment variable:
+
+        export SUDOERS_BASE="ou=SUDOers,dc=lanathome,dc=com"
+
+        Make the script executable and run:
+
+        /tmp/sudo-1.8.21p2/plugins/sudoers/sudoers2ldif /etc/sudoers > /home/ngr/sudoers.ldif
+
+        copy /home/ngr/sudo/sudoers.ldif to openldap.lanathome.com and issue the ldapadd command:
+        ldapadd -x -D cn=admin,dc=lanathome,dc=com -W -f /home/ngr/sudo/sudoers.ldif -c
+        

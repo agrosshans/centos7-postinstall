@@ -1,0 +1,14 @@
+cobbler ansible_host=192.168.56.100 ansible_port=22 ansible_user=root ansible_ssh_private_key_file=/Users/grosshaa/.ssh/id_rsa
+#
+#
+[all]
+centos6-1
+centos6-2
+
+[vm-macbook]
+centos6-1
+centos6-2
+
+[vm-macmini]
+centos6-3
+centos6-4
